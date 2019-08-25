@@ -2,9 +2,14 @@
 
 $start = "http://localhost:8888/simple-search-engine/test.html";
 
+
+$pdo = new PDO('mysql:host=127.0.0.1;port=8889;dbname=search_engine', 'root', 'root');
+
+
 $already_crawled = array();
 
 $crawling = array();
+
 
 function get_details($url) {
 
@@ -30,14 +35,18 @@ function get_details($url) {
 			$keywords = $meta->getAttribute("content");
 		}
 	}
-	return '{ "Title": "' . str_replace("\n", "", $title) . '", "Description": "' . str_replace("\n", "", $description) . '", "Keywords":"'. str_replace("\n", "", $keywords) .'", "URL:" "' . $url . '"},';
+
+	return '{ "Title": "' . str_replace("\n", "", $title) . '", "Description": "' . str_replace("\n", "", $description) . '", "Keywords":"'. str_replace("\n", "", $keywords) .'", "URL:" "' . $url . '"}';
+
 }
+
 
 
 function follow_links($url) {
 
 	global $already_crawled;
 	global $crawling;
+	global $pdo;
 
 	$options = array('http'=>array('method'=>"GET", 'headers'=>"User-Agent: linkoutBot/1.0\n"));
 
@@ -70,7 +79,31 @@ function follow_links($url) {
 		if (!in_array($l, $already_crawled)) {
 			$already_crawled[] = $l;
 			$crawling[] = $l;
-			echo get_details($l)."\n";
+
+			$details = json_decode(get_details($l));
+
+			if ($details->URL . " ") {
+				echo $details->URL . "\n";
+			} else {
+				echo 'there is nothing';
+			}
+
+			$rows = $pdo->query("SELECT * FROM `index` WHERE url_hash='".md5($details->URL)."'");
+			$rows = $rows->fetchColumn();
+
+			//$params = array(':title' => $details->Title,':description' => $details->Description,':keywords' => $details->Keywords,':url' => $details->URL,':url_hash' => $details->md5($details->URL));
+			
+			if ($rows > 0) {
+				echo "UPDATE"."\n";
+			} else {
+				if (!is_null($params[':title']) && !is_null($params[':description'])) {
+				
+					$result = $pdo->prepare("INSERT INTO `index` VALUES ('',:title,:description, :keywords,:url, :url_hash)");
+					$result = $pdo->execute($params);
+				}
+			}
+
+			//echo get_details($l)."\n";
 			//echo $l."\n";
 
 		}
@@ -86,5 +119,7 @@ function follow_links($url) {
 
 follow_links($start);
 
-print_r($already_crawled);
+//print_r($already_crawled);
+
+
 ?>
